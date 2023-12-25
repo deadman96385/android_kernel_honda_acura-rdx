@@ -1,0 +1,187 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "dra74x.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clk/ti-dra7-atl.h>
+#include "dra7-densoJ6.dtsi"
+
+/ {
+	model = "DENSO REF DRA756";
+	compatible = "denso,dra75xref", "ti,dra74", "ti,dra7";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x60000000>; /* 2Gbyte = 2048 MB */
+	};
+	
+	primary_sound: primary_sound {
+		compatible = "ti,dra7xx-densoj6-audio";
+		ti,model = "DRA7xx-EVM";
+		/* Media DAI link */
+		ti,media-cpu = <&mcasp3>;
+		ti,media-codec = <&tlv320aic23b>;
+		ti,media-mclk-freq =  <5644800>;
+		ti,media-slots = <2>;
+		clocks = <&sys_clkin1>;
+		clock-names = "ti,codec-clock";
+		/* symbol names from from tlv320aic23b data sheet" */
+		ti,audio-routing =
+			"Headphone", "LHPOUT",
+			"Headphone", "RHPOUT",
+			"LLINEIN", "Line Input",
+			"RLINEIN", "Line Input",
+			"Line Out", "LOUT",
+			"Line Out", "ROUT",
+			"MICIN", "Mic Input";
+	};
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 7 0>;	/* gpio4_7 Denso WiFi Enabled */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+	
+};
+
+&mmc2 {
+	status = "okay";
+	vmmc-supply = <&evm_3v3_sw>;
+	bus-width = <8>;
+	pinctrl-names = "default", "hs";
+	pinctrl-0 = <&mmc2_pins_default>;
+	pinctrl-1 = <&mmc2_pins_hs>;
+};
+
+&i2c1 {
+	/* TLC chip for LCD panel power and backlight */
+	tlc59108: tlc59108@40 {
+		compatible = "ti,tlc59108-lp101";
+		reg = <0x40>;
+		
+		port {
+			tlc_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+	};
+
+	ldc3001:ldc3001@18 {
+		compatible = "lgphilips,ldc3001";
+		status = "okay";
+		reg = <0x18>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+		max-touch-points = <10>;
+		res-x = <1280>;
+		res-y = <800>;
+	};
+};
+
+&i2c2 {
+	camera_adv7180: camera_adv7180 {
+		compatible = "ad,adv7180";
+		reg = <0x21>;
+		/*gpios = <&gpio5 25 0>;   only one if IRQ is being used */
+		/* interrupts = <27 0x8>; Invalid value */
+
+		port {
+			adv7180: endpoint@0 {
+				// No props incase of BT656
+				hsync-active = <0>; /* This signal is embedded */
+				vsync-active = <0>; /* This signal is embedded */
+				/* bus-width = <8>; John thinks this is not needed */
+				/* channels = <0>; */
+			};
+		};
+	};
+
+	/* TI TLV320AIC23B audio codec */
+	tlv320aic23b: tlv320aic23b@1A {
+		compatible = "ti,tlv320aic23";
+		reg = <0x1A>;
+		status = "okay";
+	};
+};
+
+&dss {
+	ports {
+		port {
+			dpi_out: endpoint {
+				remote-endpoint = <&tlc_in>;
+			};
+		};
+	};
+};
+
+&voltdm_mpu {
+	vdd-supply = <&smps123_reg>;
+};
+
+&qspi {
+	status = "okay";
+
+	spi-max-frequency = <48000000>;
+	m25p80@0 {
+		compatible = "s25fl256s1";
+		spi-max-frequency = <48000000>;
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-cpol;
+		spi-cpha;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table.
+		 * The ROM checks the first four physical blocks
+		 * for a valid file to boot and the flash here is
+		 * 64KiB block size.
+		 */
+		partition@0 {
+			label = "QSPI.SPL";
+			reg = <0x00000000 0x000050000>;
+		};
+		partition@1 {
+			label = "QSPI.u-boot";
+			reg = <0x00080000 0x00080000>;
+		};
+		partition@2 {
+			label = "QSPI.denso-primary";
+			reg = <0x00fd0000 0x00010000>;
+		};
+		partition@3 {
+			label = "QSPI.denso-secondary";
+			reg = <0x00fe0000 0x00010000>;
+		};
+		partition@4 {
+			label = "QSPI.denso-readonly";
+			reg = <0x00ff0000 0x00010000>;
+		};
+		partition@5 {
+			label = "QSPI.denso-bootflags";
+			reg = <0x00fc0000 0x00010000>;
+		};
+		partition@6 {
+			label = "QSPI.denso-otp";
+			/* Secure Silicon Sector
+			 *   Document: S25FL256S.pdf
+			 *   Table 8.7
+			 *   Page: 58
+			 *	 Valid Sector: 0x00 - 0x3FF
+			 */
+			reg = <0x00000000 0x00010000>;
+		};
+	};
+};

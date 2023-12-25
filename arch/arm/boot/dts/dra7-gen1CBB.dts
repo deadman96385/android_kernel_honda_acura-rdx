@@ -1,0 +1,272 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "dra74x.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clk/ti-dra7-atl.h>
+#include "dra7-densoJ6.dtsi"
+#include "dra7-gen1Display.dtsi"
+
+/ {
+
+	model = "DENSO MID DRA745";
+	compatible = "denso,dra74xmid", "ti,dra742", "ti,dra74", "ti,dra7";
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x7F000000>; /* 2Gbyte = 2048 MB -16MB for alignment calcs */
+	};
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio4 7 0>;	/* gpio4_7 Denso WiFi Enabled */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	aliases {
+		serial11 = &duart1;
+		serial12 = &duart2;
+	};
+
+	gpio_keys_polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+		status = "okay";
+		button-lwc {
+			label = "GPIO LWC";
+			linux,code = <68>; /* KEY_F10 */
+			lwc-gpios = <501 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	duart1: serial@03000000 {
+		compatible = "ti,tl16c752-uart";
+		reg = <0x0 0x03000000 0x0 0x40>;
+		clock-frequency = <14745600>;
+		/* irq setup */
+		interrupt-controller;
+		interrupt-parent = <&gpio6>;
+		interrupts = <8 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "duart1 int";
+		#interrupt-cells = <2>;
+		status = "okay";
+	};
+
+	duart2: serial@07000000 {
+		compatible = "ti,tl16c752-uart";
+		reg = <0x0 0x07000000 0x0 0x40>;
+		clock-frequency = <14745600>;
+		/* irq setup */
+		interrupt-controller;
+		interrupt-parent = <&gpio6>;
+		interrupts = <9 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "duart2 int";
+		#interrupt-cells = <2>;
+		status = "okay";
+	};
+};
+
+&mmc2 {
+	status = "okay";
+	vmmc-supply = <&evm_3v3_sw>;
+	bus-width = <8>;
+	pinctrl-names = "default", "hs", "hs200";
+	pinctrl-0 = <&mmc2_pins_default>;
+	pinctrl-1 = <&mmc2_pins_hs>;
+	pinctrl-2 = <&mmc2_pins_hs200 &mmc2_iodelay_hs200_conf>;
+	mmc-hs200-1_8v;
+	max-frequency = <192000000>;
+};
+
+&i2c1 {
+	camera_adv7180: camera_adv7180 {
+		compatible = "ad,adv7180";
+		reg = <0x21>;
+		/*gpios = <&gpio5 25 0>;   only one if IRQ is being used */
+		/* interrupts = <27 0x8>; Invalid value */
+
+		port {
+			adv7180: endpoint@0 {
+				// No props incase of BT656
+				hsync-active = <0>; /* This signal is embedded */
+				vsync-active = <0>; /* This signal is embedded */
+				/* bus-width = <8>; John thinks this is not needed */
+			};
+		};
+	};
+
+	hdmi_adv7611: hdmi_adv7611 {
+		compatible = "ad,adv7611";
+		reg = <0x4c>;
+
+		hpd-gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port {
+			reg = <0>;
+			adv7611: endpoint {
+			  //remote-endpoint = <&vin4a>;
+				hsync-active = <0>; /* This signal is discrete */
+				vsync-active = <0>; /* This signal is discrete */
+                                bus-width = <24>;
+			}; /* end of adv7611:endpoint */
+		};   /* end of port */
+	};    /* end of hdmi_adv7611:hdmi_adv7611 */
+};
+
+&voltdm_mpu {
+	vdd-supply = <&smps12_reg>;
+};
+
+&qspi {
+	status = "okay";
+
+	spi-max-frequency = <48000000>;
+	m25p80@0 {
+		compatible = "s25fl129p1";
+		spi-max-frequency = <48000000>;
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-cpol;
+		spi-cpha;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table.
+		 * The ROM checks the first four physical blocks
+		 * for a valid file to boot and the flash here is
+		 * 64KiB block size.
+		 */
+		partition@0 {
+			label = "QSPI.SPL";
+			reg = <0x00000000 0x000050000>;
+		};
+		partition@1 {
+			label = "QSPI.u-boot";
+			reg = <0x00080000 0x00080000>;
+		};
+		partition@2 {
+			label = "QSPI.denso-primary";
+			reg = <0x00fd0000 0x00010000>;
+		};
+		partition@3 {
+			label = "QSPI.denso-secondary";
+			reg = <0x00fe0000 0x00010000>;
+		};
+		partition@4 {
+			label = "QSPI.denso-readonly";
+			reg = <0x00ff0000 0x00010000>;
+		};
+		partition@5 {
+			label = "QSPI.denso-bootflags";
+			reg = <0x00fc0000 0x00010000>;
+		};
+		partition@6 {
+			label = "QSPI.denso-otp";
+			/* Secure Silicon Sector
+			 *   Document: S25FL256S.pdf
+			 *   Table 8.7
+			 *   Page: 58
+			 *	 Valid Sector: 0x00 - 0x3FF
+			 */
+			reg = <0x00000000 0x00010000>;
+		};
+	};
+};
+
+&dra7_pmx_core {
+	/* NTSC camera pins */
+	vin4b_pins: pinmux_vin4b_pins {
+		pinctrl-single,pins = <
+			0x23C (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_MDIO_MCLK    0x4A00363C 0x5: vin4b_clk1*/
+			0x25C (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_TXD2  0x4A00365C 0x5: vin4b_hsync1*/
+			0x260 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_TXD1  0x4A003660 0x5: vin4b_vsync1*/
+			0x240 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_MDIO_D       0x4A003640 0x5: vin4b_d0 */
+			0x248 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_UART3_RXD    0x4A003648 0x5: vin4b_d1 */
+			0x24C (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_UART3_TXD    0x4A00364C 0x5: vin4b_d2 */
+			0x250 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_TXC   0x4A003650 0x5: vin4b_d3 */
+			0x254 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_TXCTL 0x4A003654 0x5: vin4b_d4 */
+			0x268 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_RXC   0x4A003668 0x5: vin4b_d5 */
+			0x26C (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_RXCTL 0x4A00366C 0x5: vin4b_d6 */
+			0x270 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_RXD3  0x4A003670 0x5: vin4b_d7 */
+			0x258 (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_TXD3  0x4A003658 0x5: vin4b_de1*/
+			0x27C (PIN_INPUT | MUX_MODE5) /*0x00040005*/ /* CTRL_CORE_PAD_RGMII0_RXD0  0x4A00367C 0x5: vin4b_fld1*/
+		>;
+	};
+
+	vout1_pins: pinmux_vout1_pins {
+		pinctrl-single,pins = <
+			0x1C8	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_clk */
+			0x1CC	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_de */
+			/*0x1D0	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)    vout1_fld */
+			0x1D4	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_hsync */
+			0x1D8	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_vsync */
+			0x1DC	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d0 */
+			0x1E0	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d1 */
+			0x1E4	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d2 */
+			0x1E8	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d3 */
+			0x1EC	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d4 */
+			0x1F0	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d5 */
+			0x1F4	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d6 */
+			0x1F8	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d7 */
+			0x1FC	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d8 */
+			0x200	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d9 */
+			0x204	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d10 */
+			0x208	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d11 */
+			0x20C	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d12 */
+			0x210	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d13 */
+			0x214	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d14 */
+			0x218	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d15 */
+			0x21C	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d16 */
+			0x220	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d17 */
+			0x224	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d18 */
+			0x228	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d19 */
+			0x22C	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d20 */
+			0x230	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d21 */
+			0x234	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d22 */
+			0x238	(PIN_OUTPUT | MANUAL_MODE | MUX_MODE0)	/* vout1_d23 */
+		>;
+	};
+};
+
+&vip2 {
+	status = "okay";
+//	pinctrl-names = "default";
+//	pinctrl-0 = <&vin4b_pins>;
+};
+&vin4b {
+	status = "okay";
+	endpoint@0 {
+		slave-mode;
+		remote-endpoint = <&adv7180>;
+	};
+};
+
+/* HDMI adv7611 sit on vip2, vin4a */
+&vin4a {
+	status = "okay";
+	endpoint@0 {
+		slave-mode;
+		remote-endpoint = <&adv7611>;   /* &adv7611 match compatible = "ad,adv7611" */
+	};
+};
+
+&dss {
+	pinctrl-0 = <&vout1_pins &dss_vout1_manual1_conf>;
+};

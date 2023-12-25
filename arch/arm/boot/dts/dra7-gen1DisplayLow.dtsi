@@ -1,0 +1,19 @@
+
+#include "dra7-gen1Display.dtsi"
+
+&i2c1 {
+#ifdef HRALVDS_THRA_DISPLAY
+	hralvds_thra: hralvds_thra@55 {
+		interrupt-parent = <&gpio4>;
+		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+#else
+	gt9271:gt9271@14 {
+		interrupt-parent = <&gpio4>;
+		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
+	};
+#endif
+};
+
+

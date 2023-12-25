@@ -1,0 +1,16 @@
+tlc59108bl bindings
+
+Required properties:
+  - compatible: "ti,tlc59108-bl"
+  - reg: I2C slave address (u8)
+  - enable-gpios: gpio signal to power on the tlc59108 backlight controller
+
+
+Example:
+
+        /* TLC chip for LCD panel power and backlight  */
+       tlc59108bl: tlc59108bl@40 {
+                compatible = "ti,tlc59108-bl";
+                reg = <0x40>;
+                enable-gpios = <&pcf_lcd 13 GPIO_ACTIVE_LOW>;  /* P15, CON_LCD_PWR_DN */
+        };

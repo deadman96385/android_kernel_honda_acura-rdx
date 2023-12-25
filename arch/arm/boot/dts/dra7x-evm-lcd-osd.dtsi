@@ -1,0 +1,88 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	aliases {
+		display0 = &tc3587xxbg;
+		display1 = &hdmi0;
+	};
+};
+
+&i2c1 {
+	/* LCD Bridge Chip for driving DPI-to-DSI video to the LCD Panel */
+	tc3587xxbg: tc3587xxbg@0E {
+		compatible = "ti,tc3587xxbg";
+		reg = <0x0E>;
+		enable-gpios = <&pcf_lcd_tc3587x 0 GPIO_ACTIVE_LOW>;  /* P0, MASTER_POWER_ENn */
+
+		port@0 {
+			tc_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+
+	};
+
+	/* TLC chip for LCD panel power and backlight  */
+	tlc59108bl: tlc59108bl@40 {
+		compatible = "ti,tlc59108-bl";
+		reg = <0x40>;
+		enable-gpios = <&pcf_lcd 13 GPIO_ACTIVE_LOW>;  /* P15, CON_LCD_PWR_DN */
+	};
+
+	edt-ft5506@38 {
+		status = "okay";
+		compatible = "edt,edt-ft5506", "edt,edt-ft5x06";
+
+		reg = <0x38>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+
+		/* GPIO line is inverted before going to touch panel */
+		enable-gpios = <&pcf_lcd_tc3587x 5 GPIO_ACTIVE_HIGH>;
+
+		touchscreen-size-x = <1920>;
+		touchscreen-size-y = <1200>;
+	};
+
+	ldc3001:ldc3001@18 {
+		compatible = "lgphilips,ldc3001";
+		status = "okay";
+		reg = <0x18>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+		max-touch-points = <10>;
+		res-x = <1280>;
+		res-y = <800>;
+	};
+
+
+};
+
+/* audio codec i2c address moved to 0x19 for 10" display config */
+&tlv320aic3106 {
+      reg = <0x19>;
+};
+
+&dss {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			dpi_out: endpoint {
+				remote-endpoint = <&tc_in>;
+				data-lines = <24>;
+			};
+		};
+
+	};
+};

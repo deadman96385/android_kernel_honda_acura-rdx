@@ -1,0 +1,26 @@
+TC3587xxbg based DPI panel
+==========================
+
+Required properties
+- compatible: value should be one of the following:
+		"ti,tc3587xxbg"; /* For 1920x1200 Panel on DRA7 EVM */
+
+- reg: i2c slave address of the chip on the board
+
+Required nodes:
+- Video port for DPI input which the tc3587 converts to DSI output
+
+Example:
+-------
+	/* LCD Bridge Chip for driving DPI-to-DSI video to the LCD Panel */
+	tc3587xxbg: tc3587xxbg@0E {
+	compatible = "ti,tc3587xxbg";
+		reg = <0x0E>;
+		enable-gpios = <&pcf_lcd_tc3587x 0 GPIO_ACTIVE_LOW>;  /* P0, MASTER_POWER_ENn */
+
+		port@0 {
+				tc_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+	};

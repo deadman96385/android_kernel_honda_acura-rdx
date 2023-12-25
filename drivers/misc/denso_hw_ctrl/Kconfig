@@ -1,0 +1,8 @@
+comment "DENSO Hardware Control"
+
+config DENSO_HW_CTRL
+	tristate "DENSO proprietary hardware control for HONDA battery disconnect, nor parameters"
+	depends on I2C
+	default n
+	help
+	  A DENSO proprietary module. Say m when you want to support this tool.

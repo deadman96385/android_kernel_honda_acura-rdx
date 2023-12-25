@@ -1,0 +1,63 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	aliases {
+		display0 = &tlc59108;
+		display1 = &hdmi0;
+	};
+};
+
+&i2c1 {
+	/* TLC chip for LCD panel power and backlight */
+	tlc59108: tlc59108@40 {
+		compatible = "ti,tlc59108-lp101";
+		reg = <0x40>;
+		enable-gpios = <&pcf_lcd 13 GPIO_ACTIVE_LOW>; /* P15, CON_LCD_PWR_DN */
+
+		port {
+			tlc_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+	};
+
+	ldc3001:ldc3001@18 {
+		compatible = "lgphilips,ldc3001";
+		status = "okay";
+		reg = <0x18>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+		max-touch-points = <10>;
+		res-x = <1280>;
+		res-y = <800>;
+	};
+
+
+};
+
+/* audio codec i2c address moved to 0x19 for 10" display config */
+&tlv320aic3106 {
+      reg = <0x19>;
+};
+
+&dss {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port {
+			reg = <0>;
+
+			dpi_out: endpoint {
+				remote-endpoint = <&tlc_in>;
+				data-lines = <24>;
+			};
+		};
+	};
+};

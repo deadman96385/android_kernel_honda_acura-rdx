@@ -1,0 +1,39 @@
+config MLB150
+	tristate "Media Local Bus Driver"
+	default y
+	---help---
+	  MLB (MOST) Driver.
+	  Just say Y.
+
+choice
+	prompt "MLB Device Driver type"
+	default MLB150_J6
+	depends on MLB150
+
+config MLB150_J6
+	tristate "Device Tree J6 Config for MLB Driver"
+	---help---
+	  Configuration code specific to TI Jacinto6 MLB support,
+	  using device tree (Open Firmware) for hardware configuration.
+
+config MLB150_J6HARD
+	tristate "Hardcoded J6 Config for MLB Driver"
+	---help---
+	  Configuration code specific to TI Jacinto6 MLB support,
+	  using hardcoded values for hardware configuration.
+
+endchoice
+
+config MLB150_CPU_AFFINITY
+	int "MLB Interrupt CPU Affinity"
+	depends on MLB150
+	default -1
+	---help---
+	  Bind MLB interrupts and worker thread to this CPU.  Use -1 to
+	  indicate that all CPUs can handle MLB interrupts.
+
+config MLB150_DEBUG_POISON
+	bool "Poison Buffers"
+	default n
+	---help---
+	  Poison DMA buffers for debugging.
